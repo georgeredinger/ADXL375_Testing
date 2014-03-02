@@ -10,12 +10,8 @@ const int interrupt_pin = 2;
 const int led_pin = 9;
 #define LED_PIN (9)
 volatile int wakeups=0;
-
-//Assign the Chip Select signal to pin 10.
 int CS=10;
-
-//This is a list of some of the registers available on the ADXL345.
-//To learn more about these and the rest of the registers on the ADXL345, read the datasheet!
+volatile boolean kapow=false;
 #define DEVID 0
 char POWER_CTL = 0x2D;	//Power Control Register
 char DATA_FORMAT = 0x31;
@@ -67,90 +63,33 @@ int x,y,z;
 double xg, yg, zg;
 char tapType=0;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/***************************************************
- *  Name:        ISR(WDT_vect)
- *
- *  Returns:     Nothing.
- *
- *  Parameters:  None.
- *
- *  Description: Watchdog Interrupt Service. This
- *               is executed when watchdog timed out.
- *
- ***************************************************/
-ISR(WDT_vect)
-{
+ISR(WDT_vect){
    if(wakeups % 4 == 0)
       digitalWrite(LED_PIN, HIGH);
      else
       digitalWrite(LED_PIN,LOW);
-   
- 
-}
+ }
 
-void pin2Interrupt(void)
-{
-  /* This will bring us back from sleep. */
-  toggle = 1;
-  
-  /* Delay in here as a very crude debouncing mechanism. */ 
-    detachInterrupt(0);
-    Serial.println("Ouch");
-  delay(100);
 
-}
-/***************************************************
- *  Name:        enterSleep
- *
- *  Returns:     Nothing.
- *
- *  Parameters:  None.
- *
- *  Description: Enters the arduino into sleep mode.
- *
- ***************************************************/
-void enterSleep(void)
-{
-  
-  /* Setup pin2 as an interrupt and attach handler. */
-  attachInterrupt(0, pin2Interrupt, LOW);
+
+void enterSleep(void){
   delay(100);
-  
   set_sleep_mode(SLEEP_MODE_PWR_DOWN);
- //  set_sleep_mode(SLEEP_MODE_PWR_SAVE);   /* EDIT: could also use SLEEP_MODE_PWR_DOWN for lowest power consumption. */
+ //  set_sleep_mode(SLEEP_MODE_PWR_SAVE);   
   sleep_enable();
-  
-  sleep_mode();
+   sleep_mode();
   
   /* The program will continue from here. */
   
   /* First thing to do is disable sleep. */
   sleep_disable(); 
-  sleep_disable(); /* First thing to do is disable sleep. */
-  
-  /* Re-enable the peripherals. */
   power_all_enable();
 }
 
 void setup(){ 
    pinMode(led_pin,OUTPUT);
   pinMode(interrupt_pin, INPUT);
-  attachInterrupt(0, pin2Interrupt, RISING);
+//  attachInterrupt(0, pin2Interrupt, RISING);
   
   Serial.println("Initialisation complete.");
       digitalWrite(led_pin, HIGH);
@@ -188,7 +127,7 @@ void setup(){
   
   Serial.println("Initialisation complete.");
   delay(100); //Allow for serial print to complete.
-    attachInterrupt(0, tap, FALLING);
+    attachInterrupt(0, tap, RISING);
   //Put the ADXL345 into +/- 4G range by writing the value 0x01 to the DATA_FORMAT register.
   writeRegister(DATA_FORMAT, 0x01);
 
@@ -196,8 +135,9 @@ void setup(){
   writeRegister(INT_MAP, 0x9F);
   //Look for taps on the Z axis only.
   writeRegister(TAP_AXES, 0x01);
-  //Set the Tap Threshold to 3g
-  writeRegister(THRESH_TAP, 0x38);
+  //writeRegister(THRESH_TAP, 0x7f); // 8G or 1/2 of full scale range
+    writeRegister(THRESH_TAP, 0xff); // 16G  full scale range
+
   //Set the Tap Duration that must be reached
   writeRegister(DURATION, 0x10);
   
@@ -215,99 +155,57 @@ void setup(){
 void tap(void){
   //Clear the interrupts on the ADXL345
   readRegister(INT_SOURCE, 1, values); 
-  if(values[0] & (1<<5))tapType=2;
-  else tapType=1;;
+  readRegister(DATAX0, 6, values);
+
+  //The ADXL345 gives 10-bit acceleration values, but they are stored as bytes (8-bits). To get the full value, two bytes must be combined for each axis.
+  //The X value is stored in values[0] and values[1].
+  x = ((int)values[1]<<8)|(int)values[0];
+  //The Y value is stored in values[2] and values[3].
+  y = ((int)values[3]<<8)|(int)values[2];
+  //The Z value is stored in values[4] and values[5].
+  z = ((int)values[5]<<8)|(int)values[4];
+  kapow = true;
 }
 
 void loop(){
    char devid[1];
-     delay(1000); 
-  wakeups++;
-
-  //Reading 6 bytes of data starting at register DATAX0 will retrieve the x,y and z acceleration values from the ADXL345.
-  //The results of the read operation will get stored to the values[] buffer.
- //readRegister(DATAX0, 6, values);
-  readRegister(DEVID,1,devid);
-  Serial.println((int)devid[0]& 0xFF,HEX);
-  //The ADXL345 gives 10-bit acceleration values, but they are stored as bytes (8-bits). To get the full value, two bytes must be combined for each axis.
-  //The X value is stored in values[0] and values[1].
-//  x = ((int)values[1]<<8)|(int)values[0];
-//  //The Y value is stored in values[2] and values[3].
-//  y = ((int)values[3]<<8)|(int)values[2];
-//  //The Z value is stored in values[4] and values[5].
-//  z = ((int)values[5]<<8)|(int)values[4];
   
-  //Print the results to the terminal.
-//  Serial.print(x, DEC);
-//  Serial.print(',');
-//  Serial.print(y, DEC);
-//  Serial.print(',');
-//  Serial.println(z, DEC);    
-// 
-   
-    delay(200);
     enterSleep();
-   if(tapType > 0)
-  {
-    if(tapType == 1){
-      Serial.println("SINGLE");
-      Serial.print(x);
-      Serial.print(',');
-      Serial.print(y);
-      Serial.print(',');
-      Serial.println(z);
-    }
-    else{
-      Serial.println("DOUBLE");
-      Serial.print((float)xg,2);
-      Serial.print("g,");
-      Serial.print((float)yg,2);
-      Serial.print("g,");
-      Serial.print((float)zg,2);
-      Serial.println("g");
-    }
-    detachInterrupt(0);
-    delay(500);
-    attachInterrupt(0, tap, FALLING);
-    tapType=0;    
-  }
-  delay(10); 
-}
 
-//This function will write a value to a register on the ADXL345.
-//Parameters:
-//  char registerAddress - The register to write a value to
-//  char value - The value to be written to the specified register.
+if(kapow){
+     
+     Serial.println("Bammo");
+     Serial.print(x);
+     Serial.print(',');
+     Serial.print(y);
+     Serial.print(',');
+     Serial.println(z);
+     kapow=false;   
+     detachInterrupt(0);
+    delay(50);
+    attachInterrupt(0, tap, RISING);
+} 
+    }
+  
+   
+
+
 void writeRegister(char registerAddress, char value){
-  //Set Chip Select pin low to signal the beginning of an SPI packet.
   digitalWrite(CS, LOW);
-  //Transfer the register address over SPI.
   SPI.transfer(registerAddress);
-  //Transfer the desired register value over SPI.
   SPI.transfer(value);
-  //Set the Chip Select pin high to signal the end of an SPI packet.
   digitalWrite(CS, HIGH);
 }
 
-//This function will read a certain number of registers starting from a specified address and store their values in a buffer.
-//Parameters:
-//  char registerAddress - The register addresse to start the read sequence from.
-//  int numBytes - The number of registers that should be read.
-//  char * values - A pointer to a buffer where the results of the operation should be stored.
+
 void readRegister(char registerAddress, int numBytes, char * values){
-  //Since we're performing a read operation, the most significant bit of the register address should be set.
   char address = 0x80 | registerAddress;
-  //If we're doing a multi-byte read, bit 6 needs to be set as well.
   if(numBytes > 1) address = address | 0x40;
   
-  //Set the Chip select pin low to start an SPI packet.
   digitalWrite(CS, LOW);
-  //Transfer the starting register address that needs to be read.
   SPI.transfer(address);
-  //Continue to read registers until we've read the number specified, storing the results to the input buffer.
   for(int i=0; i<numBytes; i++){
     values[i] = SPI.transfer(0x00);
   }
-  //Set the Chips Select pin high to end the SPI packet.
   digitalWrite(CS, HIGH);
 }
