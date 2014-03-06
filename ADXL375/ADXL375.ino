@@ -40,6 +40,9 @@ void readFrom(int device, byte address, int num, byte buff[]) {
 
 void setup(){ 
   pinMode(led,OUTPUT);
+    pinMode(RED,OUTPUT);
+  pinMode(YELLOW,OUTPUT);
+
   pinMode(interrupt_pin, INPUT);
   // digitalWrite(interrupt_pin, HIGH);    // pullup
   attachInterrupt(0, biff, RISING);
@@ -106,6 +109,8 @@ char str[64];                      //string buffer to transform data before send
 
 void loop(){
   int x, y, z;
+  unsigned maxx=0,maxy=0,maxz=0;
+  unsigned maxmax=0;
   int i=0;
   if(bam) {
     bam=false;
@@ -117,14 +122,31 @@ void loop(){
       x = (((int)buff[1]) << 8) | buff[0];   
       y = (((int)buff[3])<< 8) | buff[2];
       z = (((int)buff[5]) << 8) | buff[4];
-
+      maxx=max(abs(x),maxx);
+      maxy=max(abs(y),maxy);
+      maxz=max(abs(z),maxz);
       sprintf(str, "%d, %d ,%d ,%d", i,x, y, z);  
       Serial.print(str);
       Serial.write(10);
 
     }
-
+    Serial.println("==========");
+     sprintf(str, "%d ,%d ,%d", maxx, maxy, maxz);  
+      Serial.print(str);
+      Serial.write(10);
+    maxmax=max(maxx,maxy);
+    maxmax = max(maxmax,maxz);
+    sprintf(str, "maxmax=,%d", maxmax);  
+      Serial.print(str);
+      Serial.write(10);
+    digitalWrite(YELLOW,LOW);
+    digitalWrite(RED,LOW); 
+    if(maxmax>200){
+    if(maxmax<500 ) digitalWrite(YELLOW,HIGH);
+    if(maxmax>500) digitalWrite(RED,HIGH);  
+    } 
   }
+  
 }
 
 
