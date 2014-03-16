@@ -1,10 +1,16 @@
+#include "ADXL375.H"
+ volatile boolean red,yellow;
+
 void setupFIFO(){
-//   writeTo(DEVICE, 0x2D, 0);      
-//  writeTo(DEVICE, 0x2D, 16);
+  //   writeTo(DEVICE, 0x2D, 0);      
+  //  writeTo(DEVICE, 0x2D, 16);
+  //9.1 active low interrupt.  
+
+  writeTo(DEVICE,ADXL375_DATA_FORMAT_REG,0b00011011);
 
   //1. Write 0x28 to Register 0x1D; set shock threshold to 31.2 g.
- // writeTo(DEVICE,0x1D,0x28); // 2,5 Gs for an ADXL345,(OX28/0xFF)*FSR
-  writeTo(DEVICE,0x1D,0x02); // 02/255 of fsr 
+  // writeTo(DEVICE,0x1D,0x28); // 2,5 Gs for an ADXL345,(OX28/0xFF)*FSR
+  writeTo(DEVICE,0x1D,64); // 64/255 of fsr or 50 Gs since FSR == 200 Gs
   //2. Write 0x50 to Register 0x21; set shock duration to 50 ms.
   writeTo(DEVICE,0x21,0x50);
   //3. Write 0x20 to Register 0x22; set latency to 40 ms.
@@ -29,23 +35,22 @@ void setupFIFO(){
   //records the trigger event acceleration with 10 samples
   //retained from before the trigger event.
   writeTo(DEVICE,0x38,0XEA);
+
+
   //10. Write 0x08 to Register 0x2D to start the measurement.
   //  It is recommended that the POWER_CTL register be
   //  configured last.
+
   writeTo(DEVICE,0x2D,0x08);
 }
 
-
-void readFIFO() {
-   int x, y, z;
+int maxFIFO() {
+  int x, y, z;
   unsigned maxx=0,maxy=0,maxz=0;
   unsigned maxmax=0;
   int i=0;
- if(bam) {
-    bam=false;
-    delay(10);
+ 
     readFrom(DEVICE,0X30,1,buff);
-    Serial.println("Bamo-------------------");
     for(i=0;i<32;i++){
       readFrom(DEVICE, 0X32, TO_READ, buff); //read the acceleration data from the ADXL345
       x = (((int)buff[1]) << 8) | buff[0];   
@@ -54,34 +59,15 @@ void readFIFO() {
       maxx=max(abs(x),maxx);
       maxy=max(abs(y),maxy);
       maxz=max(abs(z),maxz);
-      sprintf(str, "%d, %d ,%d ,%d", i,x, y, z);  
-      Serial.print(str);
-      Serial.write(10);
-
     }
-    Serial.println("==========");
-     sprintf(str, "%d ,%d ,%d", maxx, maxy, maxz);  
-      Serial.print(str);
-      Serial.write(10);
     maxmax=max(maxx,maxy);
     maxmax = max(maxmax,maxz);
-    sprintf(str, "maxmax=,%d", maxmax);  
-      Serial.print(str);
-      Serial.write(10);
-    digitalWrite(YELLOW,LOW);
-    digitalWrite(RED,LOW); 
-    if(maxmax>200){
-    if(maxmax<500 ) digitalWrite(YELLOW,HIGH);
-    if(maxmax>500) digitalWrite(RED,HIGH);  
-    } 
-  }
-}
+    return(maxmax);
+ }
 void readXYZ(int *x,int *y,int *z){
   readFrom(DEVICE, 0X32, TO_READ, buff); //read the acceleration data from the ADXL345
-      *x = (((int)buff[1]) << 8) | buff[0];   
-      *y = (((int)buff[3])<< 8) | buff[2];
-      *z = (((int)buff[5]) << 8) | buff[4];
-      
-    
-
+  *x = (((int)buff[1]) << 8) | buff[0];   
+  *y = (((int)buff[3])<< 8) | buff[2];
+  *z = (((int)buff[5]) << 8) | buff[4];
 }
+

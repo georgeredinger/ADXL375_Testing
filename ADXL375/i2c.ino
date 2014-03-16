@@ -11,8 +11,8 @@ void readFrom(int device, byte address, int num, byte buff[]) {
   Wire.write(address);        //sends address to read from
   Wire.endTransmission(); //end transmission
 
-    Wire.beginTransmission(device); //start transmission to device (initiate again)
-  Wire.requestFrom(device, num);    // request 6 bytes from device
+  Wire.beginTransmission(device); //start transmission to device (initiate again)
+  Wire.requestFrom(device, num);    // request num bytes from device
 
   int i = 0;
   while(Wire.available())    //device may send less than requested (abnormal)
