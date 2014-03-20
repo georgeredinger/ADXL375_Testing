@@ -64,7 +64,7 @@ WDTCSR = WDTCSR | B00011000;
 //   0         0      1        1            16K (16384) cycles    0.125 s
 //   0         1      0        0            32K (32768) cycles    0.25 s
 //WDTCSR  = (0<<WDP3)|(0<<WDP2) | (1<<WDP1) | 1; // set //prescaler to .125 second
-WDTCSR  = (0<<WDP3)|(0<<WDP2) | (1<<WDP1) | 0; // set //prescaler to .64ms second
+WDTCSR  = (0<<WDP3)|(0<<WDP2) | (1<<WDP1) | 0; // set //prescaler to .64ms 
 
 
 //   0         1      0        1            64K (65536) cycles    0.5 s
