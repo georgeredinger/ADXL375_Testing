@@ -22,4 +22,8 @@ void readFrom(int device, byte address, int num, byte buff[]) {
   }
   Wire.endTransmission(); //end transmission
 }
+void wireend(){
+ // pinMode(A4,INPUT);
+ // pinMode(A5,INPUT);
+}
 

@@ -6,6 +6,7 @@
 #include "Pins.h"
 #include "ADXL375.H"
 #include <Wire.h>
+#include "Sleepy.h"
 
 extern volatile boolean red,yellow;
 
@@ -14,31 +15,19 @@ extern long sleep_count;
 byte buff[6] ;    //6 bytes buffer for saving data read from the device
 char str[64];                      //string buffer to transform data before sending it to the serial port
 
-
-void enterSleep(void)
-{
-  set_sleep_mode(SLEEP_MODE_PWR_SAVE);   /* EDIT: could also use SLEEP_MODE_PWR_DOWN for lowest power consumption. */
-
-  // set_sleep_mode(SLEEP_MODE_PWR_DOWN);   /* EDIT: could also use SLEEP_MODE_PWR_DOWN for lowest power consumption. */
-  sleep_enable();
-
-  /* Now enter sleep mode. */
-  sleep_mode();
-
-  /* The program will continue from here after the WDT timeout*/
-  sleep_disable(); /* First thing to do is disable sleep. */
-
-  /* Re-enable the peripherals. */
-  power_all_enable();
-}
-
-
 void setup(){ 
+  for (byte i = 0; i <= A5; i++)
+  {
+    pinMode (i, OUTPUT);    // changed as per below
+    digitalWrite (i, LOW);  //     ditto
+  }
   pinMode(GREEN,OUTPUT);
   pinMode(RED,OUTPUT);
   pinMode(YELLOW,OUTPUT);
   digitalWrite(GREEN,HIGH);
-
+  disableAnalogComparitor();
+  disableADC();
+  // disableDigitalInputBuffers(); // this seems to kill reading the accelerometer
   watchdogOn(); 
 
   pinMode(interrupt_pin, INPUT);
@@ -47,6 +36,7 @@ void setup(){
   Wire.begin();        // join i2c bus (address optional for master)
   setupFIFO();
   readFrom(DEVICE,0X30,1,buff);
+
   delay(60);
 }
 //int16_t ax, ay, az;
@@ -58,8 +48,8 @@ void biff(){
 
 void loop(){
   int maxShock;
+  Sleepy::loseSomeTime(2048);
 
-  enterSleep();
 
   if(bam){
     bam=false;
@@ -70,19 +60,21 @@ void loop(){
       if(maxShock>450) red=true;
     } 
   }
+
+  sleep_count = 0;
+  if(!(red || yellow)) digitalWrite(GREEN,HIGH);
+  
+  if(red) digitalWrite(RED,HIGH);
+  else
+    if(yellow) digitalWrite(YELLOW,HIGH);
+    
+  Sleepy::loseSomeTime(16);
   digitalWrite(GREEN,LOW);
   digitalWrite(YELLOW,LOW);
   digitalWrite(RED,LOW);
 
-  if (sleep_count % 32==0) {
-    sleep_count = 0;
-    if(!(red || yellow)) digitalWrite(GREEN,HIGH);
-    if(red) digitalWrite(RED,HIGH);
-    else
-      if(yellow) digitalWrite(YELLOW,HIGH);
-  }   
-
 }
+
 
 
 

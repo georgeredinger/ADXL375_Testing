@@ -1,4 +1,5 @@
 #include <avr/sleep.h>
+#include <Arduino.h> // Arduino 1.0
 
 long sleep_count;
 
@@ -64,7 +65,7 @@ WDTCSR = WDTCSR | B00011000;
 //   0         0      1        1            16K (16384) cycles    0.125 s
 //   0         1      0        0            32K (32768) cycles    0.25 s
 //WDTCSR  = (0<<WDP3)|(0<<WDP2) | (1<<WDP1) | 1; // set //prescaler to .125 second
-WDTCSR  = (0<<WDP3)|(0<<WDP2) | (1<<WDP1) | 0; // set //prescaler to .64ms 
+//WDTCSR  = (0<<WDP3)|(0<<WDP2) | (1<<WDP1) | 0; // set //prescaler to .64ms 
 
 
 //   0         1      0        1            64K (65536) cycles    0.5 s
@@ -75,14 +76,19 @@ WDTCSR  = (0<<WDP3)|(0<<WDP2) | (1<<WDP1) | 0; // set //prescaler to .64ms
 //   1         0      0        0            512K (524288) cycles 4.0 s
 //   1         0      0        1            1024K (1048576) cycles 8.0 s
 // Enable the watchdog timer interupt.
+WDTCSR  = (1<<WDP3)|(0<<WDP2) | (0<<WDP1) | 1; // set //prescaler to .5 second
+
 WDTCSR = WDTCSR | B01000000;
 MCUSR = MCUSR & B11110111;
 
 }
 
-ISR(WDT_vect)
-{
-sleep_count ++; // keep track of how many sleep cycles
-// have been completed.
-}
+//ISR(WDT_vect)
+//{
+//sleep_count ++; // keep track of how many sleep cycles
+//// have been completed.
+//}
+
+ISR(WDT_vect) { Sleepy::watchdogEvent(); }
+
 
